@@ -1,0 +1,75 @@
+yaml
+# 데이터 자동 갱신 + 사이트 배포 (GitHub Pages)
+# 시각은 UTC 기준. GitHub 예약 실행은 보통 5~20분 늦게 시작될 수 있습니다.
+name: 데이터 갱신
+
+on:
+  schedule:
+    - cron: "16 21 * * 1-5"   # 06:16 KST (화~토) — 미국 장 마감 후
+    - cron: "46 6 * * 1-5"    # 15:46 KST (월~금) — 한국 장 마감 후
+    - cron: "7 * * * *"       # 매시 07분 — 비트코인 청산맵
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "갱신 범위 (all / us / kr / btc)"
+        default: "all"
+  push:
+    branches: [main]
+    paths: ["site/**", "config/**"]   # 직접 수정한 내용도 바로 반영
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 갱신 범위 결정
+        id: m
+        run: |
+          case "${{ github.event_name }}:${{ github.event.schedule }}" in
+            "schedule:16 21 * * 1-5") echo "mode=us"  >> $GITHUB_OUTPUT ;;
+            "schedule:46 6 * * 1-5")  echo "mode=kr"  >> $GITHUB_OUTPUT ;;
+            "schedule:7 * * * *")     echo "mode=btc" >> $GITHUB_OUTPUT ;;
+            "workflow_dispatch:"*)    echo "mode=${{ github.event.inputs.mode || 'all' }}" >> $GITHUB_OUTPUT ;;
+            *)                        echo "mode=none" >> $GITHUB_OUTPUT ;;
+          esac
+
+      - uses: actions/setup-python@v5
+        if: steps.m.outputs.mode != 'none'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 데이터 수집
+        if: steps.m.outputs.mode != 'none'
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: |
+          pip install -q -r requirements.txt
+          python scripts/run.py ${{ steps.m.outputs.mode }}
+
+      - name: 데이터 저장
+        if: steps.m.outputs.mode != 'none'
+        run: |
+          git config user.name "market-station-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add site/data
+          git diff --cached --quiet || git commit -m "데이터 갱신 (${{ steps.m.outputs.mode }})"
+          git pull --rebase -X ours origin main || true
+          git push || true
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
