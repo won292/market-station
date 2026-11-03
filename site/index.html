@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>마켓 계측소</title>
+<meta name="description" content="시장 체온계, 히트맵, 마켓 캘린더, 비트코인 청산맵, 실적 반응, 주요 인물의 한마디를 한 화면에서 보는 개인 투자 보드">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--BODY-START-->
+<div id="sample" class="sample-banner" hidden>샘플 데이터로 표시 중입니다 — 실제 시세가 아닙니다. 자동 갱신이 한 번 돌면 실제 데이터로 바뀝니다.</div>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#"><b>마켓 계측소</b><small>MARKET STATION</small></a>
+    <span class="stamp num" id="stamp">갱신 확인 중…</span>
+    <nav class="jump" aria-label="섹션 바로가기">
+      <a href="#sec-note">나의 한마디</a><a href="#sec-temp">체온계</a><a href="#sec-heatmap">히트맵</a><a href="#sec-week">마켓 캘린더</a><a href="#sec-liq">BTC 청산맵</a><a href="#sec-earn">실적 반응</a><a href="#sec-voices">인물의 한마디</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="sec" id="sec-note">
+    <div class="sec-head"><h2>나의 한마디</h2><span class="code">NOTE</span></div>
+    <p class="cadence">직접 작성 · content/notes.json 수정 시 반영</p>
+    <div class="notes" id="notes"></div>
+  </section>
+
+  <section class="sec" id="sec-temp">
+    <div class="sec-head"><h2>시장 체온계</h2><span class="code">T-01</span></div>
+    <p class="cadence">하루 2회 갱신 — 미국 장 마감 후(06:16 KST 전후) · 한국 장 마감 후(15:46 KST 전후)</p>
+    <div class="bar"><div class="seg" id="thermo-seg" role="group" aria-label="시장 선택"></div></div>
+    <div id="thermo-body"></div>
+  </section>
+
+  <section class="sec" id="sec-heatmap">
+    <div class="sec-head"><h2>히트맵</h2><span class="code">H-02</span></div>
+    <p class="cadence">하루 2회 갱신 · 타일 크기 = 시가총액(ETF는 순자산) · 테두리 = 관심그룹</p>
+    <div class="bar">
+      <div class="seg" id="hm-mkt" role="group" aria-label="시장"></div>
+      <div class="seg" id="hm-per" role="group" aria-label="기간"></div>
+      <div class="legend"><span class="num down">-3%</span><span class="ramp" style="background:linear-gradient(90deg,var(--down),var(--tile0),var(--up));width:110px"></span><span class="num up">+3%</span>
+        <span><i style="background:none;box-shadow:inset 0 0 0 2px var(--g-lead)"></i>주도</span><span><i style="background:none;box-shadow:inset 0 0 0 2px var(--g-def)"></i>방어</span><span><i style="background:none;box-shadow:inset 0 0 0 2px var(--g-exp)"></i>탐색</span></div>
+    </div>
+    <div class="tm" id="tm"></div>
+  </section>
+
+  <section class="sec" id="sec-week">
+    <div class="sec-head"><h2>마켓 캘린더</h2><span class="tag">다음 7일 · 한국시간</span><span class="code">C-03</span></div>
+    <p class="cadence">하루 2회 갱신 · 발표치는 갱신 때 입력</p>
+    <div class="bar">
+      <div class="seg" id="cal-f" role="group" aria-label="분류"></div>
+      <div class="seg" id="cal-v" role="group" aria-label="보기"></div>
+    </div>
+    <div id="cal-body"></div>
+    <div class="legend" style="margin-top:12px"><span><i style="background:var(--muted)"></i>경제지표</span><span><i style="background:var(--fomc)"></i>FOMC</span><span><i style="background:var(--g-lead)"></i>주도</span><span><i style="background:var(--g-def)"></i>방어</span><span><i style="background:var(--g-exp)"></i>탐색</span><span><i style="background:var(--line)"></i>휴장·시장 이벤트</span><span>★ 예상일(확정 전)</span><span style="color:var(--accent)">◆◆◆ 고영향 · ◆◆ 주요 · ◆ 정기</span></div>
+  </section>
+
+  <section class="sec" id="sec-liq">
+    <div class="sec-head"><h2>비트코인 청산맵</h2><span class="tag">추정 청산 밀집 구간</span><span class="code">B-04</span></div>
+    <p class="cadence">매시간 갱신 · 현재가는 페이지가 열려 있는 동안 5분마다 보정 · 공개 캔들로 계산한 추정치</p>
+    <div class="bar"><div class="seg" id="btc-w" role="group" aria-label="기간"></div></div>
+    <div class="btc"><canvas id="btc-cv" role="img" aria-label="시간과 가격대별 추정 청산 밀집도"></canvas><div class="side" id="btc-side"></div></div>
+  </section>
+
+  <section class="sec" id="sec-earn">
+    <div class="sec-head"><h2>관심기업 실적 반응</h2><span class="tag">최근 8분기</span><span class="code">E-05</span></div>
+    <p class="cadence">미국 장 마감 후 하루 1회 갱신 · 기준가 = 발표 직전 종가</p>
+    <div class="co-chips" id="co-chips"></div>
+    <div id="earn-body"></div>
+  </section>
+
+  <section class="sec" id="sec-voices">
+    <div class="sec-head"><h2>주요 인물의 한마디</h2><span class="tag">발언 아카이브</span><span class="code">V-06</span></div>
+    <p class="cadence">직접 작성 · content/voices.json 에 발언 요약과 출처를 추가</p>
+    <div class="people" id="people"></div>
+    <div class="quotes" id="quotes"></div>
+  </section>
+</main>
+<footer class="wrap">공개된 시세와 일정을 자동으로 모아 정리한 개인 학습용 보드입니다. 투자 추천이 아니며, 청산맵과 체온은 추정치입니다.</footer>
+<!--BODY-END-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
