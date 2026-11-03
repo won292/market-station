@@ -38,7 +38,50 @@ KO = {
     "10-y Bond Auction": "10년물 국채 입찰", "30-y Bond Auction": "30년물 국채 입찰",
     "Caixin Manufacturing PMI": "중국 차이신 제조업 PMI", "Manufacturing PMI": "제조업 PMI",
     "BOJ Policy Rate": "일본은행 기준금리", "Monetary Policy Statement": "통화정책 성명",
+    "Congressional Elections": "미국 의회 선거", "Loan Officer Survey": "연준 대출담당자 서베이",
+    "Construction Spending m/m": "건설지출", "ISM Manufacturing Prices": "ISM 제조업 물가",
+    "ISM Services Prices": "ISM 서비스업 물가", "RCM/TIPP Economic Optimism": "TIPP 경제낙관지수",
+    "Omdia Total Vehicle Sales": "자동차 판매", "API Weekly Statistical Bulletin": "API 원유 재고",
+    "Final Services PMI": "S&P 서비스업 PMI(확정)", "Final Manufacturing PMI": "S&P 제조업 PMI(확정)",
+    "Factory Orders m/m": "공장 주문", "Challenger Job Cuts y/y": "챌린저 감원 발표",
+    "Prelim Nonfarm Productivity q/q": "노동생산성(예비)", "Prelim Unit Labor Costs q/q": "단위노동비용(예비)",
+    "Natural Gas Storage": "천연가스 재고", "Consumer Credit m/m": "소비자 신용",
+    "Prelim UoM Inflation Expectations": "미시간대 기대인플레(예비)", "Revised UoM Inflation Expectations": "미시간대 기대인플레(확정)",
+    "Wholesale Inventories m/m": "도매 재고", "Business Inventories m/m": "기업 재고", "Import Prices m/m": "수입물가",
+    "Federal Budget Balance": "연방 재정수지", "NAHB Housing Market Index": "NAHB 주택시장지수",
+    "Chicago PMI": "시카고 PMI", "Richmond Manufacturing Index": "리치먼드 제조업지수", "Beige Book": "베이지북",
+    "Personal Spending m/m": "개인소비", "Personal Income m/m": "개인소득", "Employment Cost Index q/q": "고용비용지수",
+    "S&P/CS Composite-20 HPI y/y": "케이스-실러 주택가격", "HPI m/m": "주택가격지수", "Current Account": "경상수지",
+    "Retail Sales y/y": "소매판매 전년비", "Industrial Production y/y": "산업생산 전년비", "Bank Holiday": "은행 휴일",
+    "Treasury Currency Report": "재무부 환율보고서", "Core PCE Price Index": "근원 PCE 물가",
+    "Tokyo Core CPI y/y": "도쿄 근원 CPI", "National Core CPI y/y": "일본 근원 CPI",
+    "CPI y/y (CNY)": "중국 소비자물가", "PPI y/y": "생산자물가 전년비", "GDP q/y": "GDP 전년비",
+    "New Loans": "신규 위안화 대출", "M2 Money Supply y/y": "M2 통화량",
 }
+SPEAKER = {
+    "FOMC Member": "연준 위원", "Fed Chair": "연준 의장", "Fed Vice Chair": "연준 부의장",
+    "BOJ Gov": "일본은행 총재", "PBOC Gov": "인민은행 총재", "Treasury Sec": "재무장관", "President": "대통령",
+}
+FOMC_TITLES = {"Federal Funds Rate", "FOMC Statement", "FOMC Press Conference", "FOMC Meeting Minutes",
+               "FOMC Economic Projections"}
+
+
+def ko_title(title: str, country: str) -> str:
+    if title in KO:
+        if country == "CNY" and title in ("CPI y/y", "PPI y/y"):
+            return "중국 " + KO[title].replace("(CPI)", "").replace("(PPI)", "")
+        if country == "JPY" and title in ("CPI y/y",):
+            return "일본 " + KO[title]
+        return KO[title]
+    # "FOMC Member Williams Speaks" → "연준 위원 윌리엄스 연설" 형태
+    if title.endswith(" Speaks"):
+        who = title[: -len(" Speaks")]
+        for k, v in SPEAKER.items():
+            if who.startswith(k):
+                rest = who[len(k):].strip()
+                return f"{v} {rest} 연설".replace("  ", " ")
+        return who + " 연설"
+    return title
 COUNTRY_KO = {"USD": "🇺🇸", "CNY": "🇨🇳", "JPY": "🇯🇵", "EUR": "🇪🇺", "GBP": "🇬🇧", "KRW": "🇰🇷"}
 IMPACT = {"High": 3, "Medium": 2, "Low": 1, "Holiday": 0}
 
@@ -102,17 +145,21 @@ def macro_events(countries: list[str]) -> list[dict]:
         if r.get("country") != "USD" and lvl < 3:
             continue  # 해외 지표는 '정밀(고영향)'만
         try:
-            dt = datetime.fromisoformat(r["date"]).astimezone(KST)
+            src = datetime.fromisoformat(r["date"])  # 원래 시간대(미 동부 등)
+            dt = src.astimezone(KST)
         except Exception:
             continue
         title = r.get("title", "")
-        cat = "fomc" if title.startswith(("FOMC", "Federal Funds")) else "macro"
+        cat = "fomc" if title in FOMC_TITLES else "macro"
         if lvl == 0:
             cat = "holiday"
+        # 시간 미정(종일) 일정은 피드에 원래 시간대 자정으로 들어옴 → 날짜도 원래 날짜 사용
+        all_day = src.hour == 0 and src.minute == 0
+        day = src.date() if all_day else dt.date()
         out.append({
-            "id": f"ff:{r.get('country')}:{title}:{dt.date()}",
-            "date": dt.date().isoformat(), "time": dt.strftime("%H:%M") if dt.hour or dt.minute else None,
-            "title": KO.get(title, title), "orig": title, "flag": COUNTRY_KO.get(r.get("country"), r.get("country")),
+            "id": f"ff:{r.get('country')}:{title}:{day}",
+            "date": day.isoformat(), "time": None if all_day else dt.strftime("%H:%M"),
+            "title": ko_title(title, r.get("country")), "orig": title, "flag": COUNTRY_KO.get(r.get("country"), r.get("country")),
             "cat": cat, "level": lvl, "forecast": r.get("forecast") or None, "previous": r.get("previous") or None,
             "actual": r.get("actual") or None,
         })

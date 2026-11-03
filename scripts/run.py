@@ -61,13 +61,17 @@ def diagnosis(cal: dict) -> dict:
         for t in grp:
             avg.setdefault(t["group"], []).append(t["d1"])
         lines.append("관심그룹 평균: " + " · ".join(f"{g} {sum(v)/len(v):+.1f}%" for g, v in avg.items()))
-    us = (th.get("us") or {}).get("temp")
-    if us is None:
+    temps = {lbl: (th.get(k) or {}).get("temp") for k, lbl in (("us", "미국"), ("kr", "한국"))}
+    hot = [l for l, t in temps.items() if t is not None and t >= 80]
+    cold = [l for l, t in temps.items() if t is not None and t <= 20]
+    if all(t is None for t in temps.values()):
         verdict = "관찰"
-    elif us >= 80:
-        verdict = "과열 — 추격보다 점검"
-    elif us <= 20:
-        verdict = "공포 — 계획된 분할 접근 점검"
+    elif cold and hot:
+        verdict = f"{'·'.join(cold)} 공포 · {'·'.join(hot)} 과열 — 시장별로 따로 점검"
+    elif cold:
+        verdict = f"{'·'.join(cold)} 공포 구간 — 계획된 분할 접근 점검, 투매 동참 주의"
+    elif hot:
+        verdict = f"{'·'.join(hot)} 과열 구간 — 추격보다 비중 점검"
     elif key_ev:
         verdict = "이벤트 대기 — 변동성 대비"
     else:
